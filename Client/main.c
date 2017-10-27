@@ -32,7 +32,7 @@
 #endif
 
 /* port */
-#define PORT 1234
+#define PORT 55065
 /* incoming message buffer */
 #define RCVBUFSIZE 8192
 
