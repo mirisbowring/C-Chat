@@ -12,6 +12,7 @@
 #include <time.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
 /* Headerfiles für Windows */
@@ -83,12 +84,25 @@ void terminate_breakline(char str[]){
 }
 
 /**
+ * This function checks whether a String starts with a specific subString.
+ * 
+ * @param pre The String that should be included
+ * @param str The whole String
+ * @return 
+ */
+bool startsWith(const char *pre, const char *str){
+    size_t lenpre = strlen(pre),
+           lenstr = strlen(str);
+    return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
+}
+
+/**
  * This function checks whether a commandline command has been passed.
  * 
  * @param str
  */
 void check_command(char str[]){
-    if(strcmp(str, "/quit\n")==0){
+    if(startsWith("/quit", str)||startsWith("/QUIT", str)){
         close(sock);
         exit(0);
     }
@@ -178,7 +192,7 @@ int main(int argc, char *argv[]){
 #endif
     /* reading the IP Address*/
     char ip_addr[15];
-    printf("Please enter the IP Address you want to connect to:");
+    printf("Please enter the IP Address you want to connect to: ");
     fgets(ip_addr, sizeof(ip_addr), stdin);
 
     /* initializes socket */
