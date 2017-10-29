@@ -4,134 +4,230 @@
  *
  * Created on 27. Oktober 2017, 22:03
  */
-/*
- * Default imports
- */
+/* Default imports */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
+#include <fcntl.h>
+#include <pthread.h>
 
 #ifdef _WIN32
-/*
- * Headerfiles für Windows
- */
-#include <winsock.h>
-#include <io.h>
-
+/* Headerfiles für Windows */
+    #include <winsock2.h>
+    #include <io.h>
 #else
-/* 
- * Headerfiles für UNIX/Linux
- */
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+/* Headerfiles für UNIX/Linux */
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <netdb.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
+    #include <fileapi.h>
 #endif
 
 /* port */
-#define PORT 1234
+#define PORT 55065
 /* incoming message buffer */
 #define RCVBUFSIZE 8192
+/* max length of message */
+#define MSG_LEN 1024
+/* max username length */
+#define USR_LEN 25
+
+struct read_write_arg{
+#ifdef _WIN32
+    SOCKET connfd;
+#else
+    int connfd;
+#endif
+    char cli[MSG_LEN];
+};
+
+#ifdef _WIN32
+SOCKET sock;
+#else
+int sock;
+#endif
 
 /**
  * Prints the error message and  exits the program.
  * 
  * @param errorMessage pointer to the error message
  */
-static void error_exit(char *errorMessage) {
+static void error_exit(char *errorMessage){
 #ifdef _WIN32
     fprintf(stderr, "%s: %d\n", errorMessage, WSAGetLastError());
 #else
     fprintf(stderr, "%s: %s\n", errorMessage, strerror(errno));
 #endif
+    /* closing connection and socket. */
+#ifdef _WIN32
+    closesocket(sock);
+    WSACleanup(); /* Cleanup Winsock */
+#else
+    close(sock);
+#endif
     exit(EXIT_FAILURE);
 }
 
 /**
+ * This function replaces the brackline with a null termination.
+ * 
+ * @param str char array that has to be tranformed
+ */
+void terminate_breakline(char str[]){
+    if(str[strlen(str)-1]=='\n')
+        str[strlen(str)-1] = '\0';
+}
+
+/**
+ * This function checks whether a commandline command has been passed.
+ * 
+ * @param str
+ */
+void check_command(char str[]){
+    if(strcmp(str, "/quit\n")==0){
+        close(sock);
+        exit(0);
+    }
+    terminate_breakline(str);
+}
+
+/**
+ * This function sends a command to the Server to rename the current user.
+ * 
+ * @param user
+ */
+void remote_rename(char user[]){
+    terminate_breakline(user);
+    char rename_command[] = "\\NAME ";
+    char *tmp = malloc((USR_LEN+(strlen(rename_command)))*sizeof(char));
+    strcpy(tmp, rename_command);
+    strcat(tmp, user);
+    printf("%s\n", tmp);
+    write(sock, tmp, strlen(tmp));
+    free(tmp);
+}
+
+/**
+ * This is a thread function that handles all read tasks.
+ * 
+ * @param arg the clients read_write_arg struct
+ * @return 
+ */
+void *handle_read(void *arg){
+    struct read_write_arg *rwa = arg;
+    int rlen;
+    char buff_in[1024];
+    while((rlen = read(rwa->connfd, buff_in, sizeof(buff_in)-1))>0){
+        buff_in[rlen] = '\0';
+        printf("%c[2K\r", 27); /*cleares the current line and resets the cursor*/
+        printf("%s", buff_in);
+    }
+    if(rlen>0)
+        error_exit("Could not connect to server for receiving messages!");
+}
+
+/**
+ * This is a thread function that handles all write tasks.
+ * 
+ * @param arg the clients read_write_arg struct
+ * @return 
+ */
+void *handle_write(void *arg){
+    struct read_write_arg *rwa = arg;
+    char c;
+    int i;
+    while(1){
+        i = 0;
+        while((c = getchar())!='\n'){
+            if(i<MSG_LEN)
+                rwa->cli[i] = c;
+            i++;
+        }
+        if(i>MSG_LEN)
+            printf("%c[2k\rToo many characters!\nSending: %s", 27, rwa->cli);
+        check_command(rwa->cli);
+        write(rwa->connfd, rwa->cli, strlen(rwa->cli));
+    }
+}
+
+/**
+ * The main function
  * 
  * @param argc
  * @param argv
  * @return 
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]){
     struct sockaddr_in server;
     struct hostent *host_info;
     unsigned long addr;
-
-#ifdef _WIN32
-    SOCKET sock;
-#else
-    int sock;
-#endif
-
-    char *echo_string;
-    int echo_len;
 
 #ifdef _WIN32
     /* initializing tcp for windows */
     WORD wVersionRequested;
     WSADATA wsaData;
     wVersionRequested = MAKEWORD(1, 1);
-    if (WSAStartup(wVersionRequested, &wsaData) != 0)
+    if(WSAStartup(wVersionRequested, &wsaData)!=0)
         error_exit("Fehler beim Initialisieren von Winsock");
     else
         printf("Winsock initialisiert\n");
 #endif
-
-    /* Primitive check whether all CLI arguments have been passed. */
-    if (argc < 3)
-        error_exit("usage: client server-ip echo_word\n");
+    /* reading the IP Address*/
+    char ip_addr[15];
+    printf("Please enter the IP Address you want to connect to:");
+    fgets(ip_addr, sizeof(ip_addr), stdin);
 
     /* initializes socket */
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0)
+    if(sock<0)
         error_exit("Error while initializing socket!");
 
-    /* Creating socketaddress of server. 
-     * TYP, IP, PORT */
-    memset(&server, 0, sizeof (server));
-    if ((addr = inet_addr(argv[1])) != INADDR_NONE) {
-        /* argv[1] is a numeric IP */
-        memcpy((char *) &server.sin_addr, &addr, sizeof (addr));
-    } else {
-        /* converting char hosts to ip*/
-        host_info = gethostbyname(argv[1]);
-        if (NULL == host_info)
+    /* Creating socketaddress of server. */
+    memset(&server, 0, sizeof(server));
+    if((addr = inet_addr(ip_addr))!=INADDR_NONE){
+        /* ip_addr is a numeric IP */
+        memcpy((char *) &server.sin_addr, &addr, sizeof(addr));
+    }else{
+        host_info = gethostbyname(ip_addr); /* converting char hosts to ip*/
+        if(NULL==host_info)
             error_exit("invalid server");
-        /* Server-IP */
         memcpy((char *) &server.sin_addr,
-                host_info->h_addr, host_info->h_length);
+                host_info->h_addr, host_info->h_length); /* Server-IP */
     }
-    /* IPv4 connection */
-    server.sin_family = AF_INET;
-    /* port */
-    server.sin_port = htons(PORT);
+    server.sin_family = AF_INET; /* IPv4 connection */
+    server.sin_port = htons(PORT); /* port */
 
     /* connect to server */
-    if (connect(sock, (struct sockaddr*) &server, sizeof (server)) < 0)
+    if(connect(sock, (struct sockaddr*) &server, sizeof(server))<0)
         error_exit("Cannot connect to server!");
 
-    /* Using second argument for echo on the server. */
-    echo_string = argv[2];
-    /* length of input */
-    echo_len = strlen(echo_string);
+    struct read_write_arg rwa;
+    rwa.connfd = sock;
 
-    /* send terminated string to server */
-    if (send(sock, echo_string, echo_len, 0) != echo_len)
-        error_exit("send() send a unexpected amount of bytes!");
+    pthread_t read;
+    pthread_t write;
 
+    /* welcome user */
+    char user[USR_LEN];
+    printf("enter your username: ");
+    fgets(user, USR_LEN, stdin);
+    remote_rename(user);
+    printf("Welcome %s!\nThe max message length is %d characters.\n\n",
+            user, MSG_LEN);
 
-    /* closing connection and socket. */
-#ifdef _WIN32
-    closesocket(sock);
-    /* Cleanup Winsock */
-    WSACleanup();
-#else
-    close(sock);
-#endif
+    /* starting threads */
+    pthread_create(&read, NULL, &handle_read, (void*) &rwa);
+    pthread_create(&write, NULL, &handle_write, (void*) &rwa);
+
+    /* keeping the main alive */
+    while(1){
+        sleep(1);
+    }
 
     return EXIT_SUCCESS;
 }
