@@ -230,8 +230,8 @@ int main(int argc, char *argv[]){
     printf("enter your username: ");
     fgets(user, USR_LEN, stdin);
     remote_rename(user);
-    printf("Welcome %s!\nThe max message length is %d characters.\n\n",
-            user, MSG_LEN);
+    printf("Welcome %s!\nThe max message length is %d characters.\nYou can "
+            "exit the chat with </quit>.\n\n", user, MSG_LEN);
 
     /* starting threads */
     pthread_create(&read, NULL, &handle_read, (void*) &rwa);
