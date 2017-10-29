@@ -232,7 +232,7 @@ int main(int argc, char** argv){
         return 1;
     }
 
-    printf("Server started!\n");
+    printf("Server started!\nListening on Port %s\n", PORT);
 
     /* accept clients */
     while(1){
