@@ -4,9 +4,7 @@
  *
  * Created on 27. Oktober 2017, 22:03
  */
-/*
- * Default imports
- */
+/* Default imports */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,15 +14,11 @@
 #include <pthread.h>
 
 #ifdef _WIN32
-/*
- * Headerfiles für Windows
- */
+/* Headerfiles für Windows */
     #include <winsock2.h>
     #include <io.h>
 #else
-/* 
- * Headerfiles für UNIX/Linux
- */
+/* Headerfiles für UNIX/Linux */
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
@@ -72,8 +66,7 @@ static void error_exit(char *errorMessage){
     /* closing connection and socket. */
 #ifdef _WIN32
     closesocket(sock);
-    /* Cleanup Winsock */
-    WSACleanup();
+    WSACleanup(); /* Cleanup Winsock */
 #else
     close(sock);
 #endif
