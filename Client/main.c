@@ -224,6 +224,8 @@ int main(int argc, char *argv[]){
 
     struct read_write_arg rwa;
     rwa.connfd = sock;
+    /* NULLs the User Input Chache */
+    memset(rwa->cli,0,sizeof(rwa->cli));
 
     pthread_t read;
     pthread_t write;
