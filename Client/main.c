@@ -55,18 +55,7 @@ int sock;
  * @param errorMessage pointer to the error message
  */
 static void error_exit(char *errorMessage){
-#ifdef _WIN32
-    fprintf(stderr, "%s: %d\n", errorMessage, WSAGetLastError());
-#else
     fprintf(stderr, "%s: %s\n", errorMessage, strerror(errno));
-#endif
-    /* closing connection and socket. */
-#ifdef _WIN32
-    closesocket(sock);
-    WSACleanup(); /* Cleanup Winsock */
-#else
-    close(sock);
-#endif
     exit(EXIT_FAILURE);
 }
 
@@ -137,7 +126,7 @@ void *handle_read(void *arg){
         printf("%c[2K\r", 27); /*cleares the current line and resets the cursor*/
         printf("%s", buff_in);
     }
-    if(rlen>0)
+    if(rlen<0)
         error_exit("Could not connect to server for receiving messages!");
 }
 
@@ -179,16 +168,6 @@ int main(int argc, char *argv[]){
     struct hostent *host_info;
     unsigned long addr;
 
-#ifdef _WIN32
-    /* initializing tcp for windows */
-    WORD wVersionRequested;
-    WSADATA wsaData;
-    wVersionRequested = MAKEWORD(1, 1);
-    if(WSAStartup(wVersionRequested, &wsaData)!=0)
-        error_exit("Fehler beim Initialisieren von Winsock");
-    else
-        printf("Winsock initialisiert\n");
-#endif
     /* reading the IP Address*/
     char ip_addr[15];
     printf("Please enter the IP Address you want to connect to: ");
