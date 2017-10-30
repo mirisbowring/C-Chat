@@ -9,11 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <time.h>
-#include <fcntl.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <sys/queue.h>
 
 #ifdef _WIN32
 /* Headerfiles für Windows */
@@ -23,7 +20,6 @@
 /* Headerfiles für UNIX/Linux */
     #include <sys/types.h>
     #include <sys/socket.h>
-    #include <netinet/in.h>
     #include <netdb.h>
     #include <arpa/inet.h>
     #include <unistd.h>
