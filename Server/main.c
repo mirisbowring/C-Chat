@@ -118,19 +118,6 @@ void strip_newline(char *s){
 }
 
 /**
- * This function prints the IP Address of the Socket
- * 
- * @param addr the Socket that contains the IP Address
- */
-void print_client_addr(struct sockaddr_in addr){
-    printf("%d.%d.%d.%d",
-            addr.sin_addr.s_addr&0xFF,
-            (addr.sin_addr.s_addr&0xFF00)>>8,
-            (addr.sin_addr.s_addr&0xFF0000)>>16,
-            (addr.sin_addr.s_addr&0xFF000000)>>24);
-}
-
-/**
  * This function handles all communication of the client
  * 
  * @param arg
@@ -144,9 +131,7 @@ void *handle_client(void *arg){
     cli_count++;
     client_t *cli = (client_t *) arg;
 
-    printf("ACCEPTED CONNECTION FROM ");
-    print_client_addr(cli->addr);
-    printf(" REFERENCED BY %d\n", cli->uid);
+    printf("ACCEPTED CONNECTION FROM %s REFERENCED BY %d\n", inet_ntoa(cli->addr.sin_addr), cli->uid);
 
     sprintf(buff_out, "%s joined the Chatroom\r\n", cli->name);
     send_message(buff_out, cli->uid);
@@ -189,8 +174,7 @@ void *handle_client(void *arg){
 
     /* delete client from queue and yeild thread */
     queue_delete(cli->uid);
-    print_client_addr(cli->addr);
-    printf(" REFERENCED BY %d LEFT THE CHATROOM\n", cli->uid);
+    printf("%s REFERENCED BY %d LEFT THE CHATROOM\n", inet_ntoa(cli->addr.sin_addr),cli->uid);
     free(cli);
     cli_count--;
     pthread_detach(pthread_self());
@@ -238,10 +222,9 @@ int main(int argc, char** argv){
 
         /* check if max clients are reached */
         if((cli_count+1)==MAX_CLIENTS){
-            printf("Too many clients!\n");
-            printf("Rejecting connection of ");
-            print_client_addr(cli_addr);
-            printf("!\n");
+            printf("Too many clients!\n"
+                    "Rejecting connection of %s!\n"
+                    , inet_ntoa(cli_addr.sin_addr));
             close(connfd);
             continue;
         }
