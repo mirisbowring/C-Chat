@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <sys/queue.h>
 
 #ifdef _WIN32
 /* Headerfiles für Windows */
@@ -165,6 +166,8 @@ void *handle_write(void *arg){
             printf("%c[2k\rToo many characters!\nSending: %s", 27, rwa->cli);
         check_command(rwa->cli);
         write(rwa->connfd, rwa->cli, strlen(rwa->cli));
+        /* NULLs the string -> User is not typing */
+        memset(rwa->cli,0,sizeof(rwa->cli));
     }
 }
 
