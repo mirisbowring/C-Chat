@@ -106,7 +106,6 @@ void remote_rename(char user[]){
     char *tmp = malloc((USR_LEN+(strlen(rename_command)))*sizeof(char));
     strcpy(tmp, rename_command);
     strcat(tmp, user);
-    printf("%s\n", tmp);
     write(sock, tmp, strlen(tmp));
     free(tmp);
 }
